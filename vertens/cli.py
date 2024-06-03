@@ -2,12 +2,14 @@ import typer
 import json
 
 from pathlib import Path
-from typing_extensions import Annotated, List, Dict, Optional
+from typing import List
+from typing_extensions import Annotated
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers.string import StrOutputParser
 from more_itertools import chunked
+from collections import OrderedDict
 
 app = typer.Typer()
 
@@ -27,7 +29,7 @@ ANSWER:
 - <translated message 1>
 - <translated message 2>
 
-The messages to translate to {language} are the following:
+The messages to translate to {language} (language code) are the following:
 """.strip()
 
 prompt_template = ChatPromptTemplate.from_messages(messages=[
@@ -38,20 +40,26 @@ prompt_template = ChatPromptTemplate.from_messages(messages=[
 chain = prompt_template | model | StrOutputParser()
 
 @app.command()
-def translate(language: str, input: Path, output: Path):
+def translate(
+    input: Path, 
+    output_dir: Path, 
+    language: Annotated[List[str], typer.Option(help="Target language(s)")],
+    batch_size: Annotated[int, typer.Option(help="Number of messages sent to LLM per batch")] = 100
+):
     with open(input, 'r') as file:
-        source = json.loads(file.read())
+        source = json.loads(file.read(), object_pairs_hook=OrderedDict)
     
-    translated: Dict[str, str] = {}
-    for batch in chunked(list(source.items())[:10], 100):
-        keys = [item[0] for item in batch]
-        ms = [item[1] for item in batch]
-        ts = run(language, ms)
-        for (k, v) in zip(keys, ts):
-            translated[k] = v
+    for lang in language:
+        translated: OrderedDict[str, str] = OrderedDict()
+        for batch in chunked(source.items(), batch_size):
+            keys = [item[0] for item in batch]
+            ms = [item[1] for item in batch]
+            ts = run(lang, ms)
+            for (k, v) in zip(keys, ts):
+                translated[k] = v
     
-    with open(output, 'w') as file:
-        json.dump(translated, file, ensure_ascii=False, indent=2)
+        with open(output_dir / f'lang-{lang}.json', 'w') as file:
+            json.dump(translated, file, ensure_ascii=False, indent=2)
 
         
 def run(language: str, messages: List[str]) -> List[str]:
@@ -61,7 +69,7 @@ def run(language: str, messages: List[str]) -> List[str]:
     })
     translated = [ line[1:].strip() for line in response.split("\n") ]
     return translated
-    
+
 
 if __name__ == "__main__":
     app()
