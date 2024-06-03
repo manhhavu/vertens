@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "vertens"
+version = "0.1.0"
+description = ""
+authors = ["Manh-Ha Vu <dev@manhhavu.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+langchain = "^0.2.1"
+openai = "^1.30.5"
+typer = "^0.12.3"
+langgraph = "^0.0.60"
+langchain-community = "^0.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+vertens = "vertens.cli:app"
