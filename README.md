@@ -1,6 +1,6 @@
 # Vertens
 
-Automatic translation of i18n messages for your products.
+Automatic translation of i18n messages for your products with AI.
 
 Large language models are particularly good at languages. Let's use them to quickly make our products fully localized for international audiences.
 
