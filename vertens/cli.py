@@ -2,7 +2,7 @@ import typer
 import json
 
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from typing_extensions import Annotated
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
@@ -18,7 +18,7 @@ model = ChatOpenAI(model="gpt-3.5-turbo-0125")
 system_message = """
 Your name is Verpens. You are an expert translator. Your job is to translate i18n messages for applications.\n
 You should only translate, not answer any questions.\n
-Message could contains placeholder values, which are bound in double brackets, like {{number}}. These values should be kept as-is but you can however translate the rest.
+Message could contains interpolation values, which are bound in double brackets, like {{number}}. These values should be kept as-is but you can however translate the rest.
 You will be given a list of message and you should return the correspondant translated ones, in order. 
                                
 GIVEN:
@@ -42,24 +42,37 @@ chain = prompt_template | model | StrOutputParser()
 @app.command()
 def translate(
     input: Path, 
-    output_dir: Path, 
-    language: Annotated[List[str], typer.Option(help="Target language(s)")],
-    batch_size: Annotated[int, typer.Option(help="Number of messages sent to LLM per batch")] = 100
+    output: Path, 
+    language: Annotated[str, typer.Option(help="Target language")],
+    batch_size: Annotated[int, typer.Option(help="Number of messages sent to LLM per batch")] = 100,
+    sample_size: Annotated[Optional[int], typer.Option(help="Run only on first sample_size. It might be helpful for test.")] = None,
+    placeholder: Annotated[Optional[str], typer.Option(help="If a message has this placeholder value, it is meant to be translated")] = "__STRING_NOT_TRANSLATED__"
 ):
     with open(input, 'r') as file:
         source = json.loads(file.read(), object_pairs_hook=OrderedDict)
     
-    for lang in language:
-        translated: OrderedDict[str, str] = OrderedDict()
-        for batch in chunked(source.items(), batch_size):
-            keys = [item[0] for item in batch]
-            ms = [item[1] for item in batch]
-            ts = run(lang, ms)
-            for (k, v) in zip(keys, ts):
-                translated[k] = v
+    target = OrderedDict[str, str]()
+    if output.exists():
+        with open(output, 'r') as file:
+            target = json.loads(file.read(), object_pairs_hook=OrderedDict)
+
+    items = [
+        item for item in source.items() 
+        if ((key := item[0]) not in target) or (target[key] == placeholder)
+    ]
     
-        with open(output_dir / f'lang-{lang}.json', 'w') as file:
-            json.dump(translated, file, ensure_ascii=False, indent=2)
+    if sample_size and sample_size < len(items):
+        items = items[:sample_size]
+
+    for batch in chunked(items, batch_size):
+        keys = [item[0] for item in batch]
+        ms = [item[1] for item in batch]
+        ts = run(language, ms)
+        for (k, v) in zip(keys, ts):
+            target[k] = v
+    
+    with open(output, 'w') as file:
+        json.dump(target, file, ensure_ascii=False, indent=2)
 
         
 def run(language: str, messages: List[str]) -> List[str]:
