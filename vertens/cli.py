@@ -48,6 +48,7 @@ def translate(
     sample_size: Annotated[Optional[int], typer.Option(help="Run only on first sample_size. It might be helpful for test.")] = None,
     placeholder: Annotated[Optional[str], typer.Option(help="If a message has this placeholder value, it is meant to be translated")] = "__STRING_NOT_TRANSLATED__"
 ):
+    source = OrderedDict[str, str]()
     with open(input, 'r') as file:
         source = json.loads(file.read(), object_pairs_hook=OrderedDict)
     
@@ -70,9 +71,14 @@ def translate(
         ts = run(language, ms)
         for (k, v) in zip(keys, ts):
             target[k] = v
+            
+    # Reorder
+    reordered_target = OrderedDict[str, str]()
+    for key in source.keys():
+        reordered_target[key] = target[key]
     
     with open(output, 'w') as file:
-        json.dump(target, file, ensure_ascii=False, indent=2)
+        json.dump(reordered_target, file, ensure_ascii=False, indent=2)
 
         
 def run(language: str, messages: List[str]) -> List[str]:

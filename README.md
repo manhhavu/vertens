@@ -5,10 +5,12 @@ Automatic translation of i18n messages for your products with AI.
 Large language models are particularly good at languages. Let's use them to quickly make our products fully localized for international audiences.
 
 ## Features
-- Multiple languages
+- Support multiple target languages as long as the LLM support
+- Idempotency: 
+    - Only translated missing keys in target language, do nothing otherwise.
+    - Keys order is preserved as the input. This is important for version control.
 - Models: OpenAI GPT. Others coming soon.
 - Batch support to fit into LLM context size
-- Keys order is preserved as the input. This is important for version control.
 
 ## Backlog
 - Support other file formats: properties, gettext
@@ -82,3 +84,21 @@ vertens --language fr --placeholder __STRING_NOT_TRANSLATED__ ./lang-en.json ./l
 This is typically useful if you are using a tool like [i18next-scanner](https://github.com/i18next/i18next-scanner) which 
 is very cool. It scans messages to translate or remove (if no longer used)
 
+### Translate multiple languages
+
+A loop in Bash would serve this purpose
+
+```bash
+#!/usr/bin/env bash
+
+for lang in fr de
+do
+    vertens --language $lang ./lang-en.json ./lang-$lang.json
+done
+```
+
+### Smoke runs
+
+If you have a huge translation file, and you want to test the vertens without
+translating all of them, you can use the **--sample-size** parameter to pick only
+a small portion of the file to translate.
